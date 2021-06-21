@@ -1,0 +1,10 @@
+# Executaveis e outros gerados depois da compilação
+babeld
+version.h
+
+# Utilizados apenas para compilação
+*.o
+
+# Utilizados para instalação e remoção no sistema
+InstallBabeld.sh
+RemoveBabeld.sh

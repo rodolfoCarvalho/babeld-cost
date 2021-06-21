@@ -33,6 +33,7 @@ struct neighbour {
     unsigned char address[16];
     struct hello_history hello;
     struct hello_history uhello; /* for Unicast Hellos */
+    unsigned short tocost;
     unsigned short txcost;
     unsigned short hello_seqno; /* for Unicast Hellos */
     struct timeval ihu_time;
@@ -59,6 +60,7 @@ struct neighbour *find_neighbour(const unsigned char *address,
 int update_neighbour(struct neighbour *neigh, struct hello_history *hist,
                      int unicast, int hello, int hello_interval);
 unsigned check_neighbours(void);
+unsigned neighbour_tocost(struct neighbour *neigh);
 unsigned neighbour_txcost(struct neighbour *neigh);
 unsigned neighbour_rxcost(struct neighbour *neigh);
 unsigned neighbour_rttcost(struct neighbour *neigh);

@@ -102,6 +102,7 @@ find_neighbour(const unsigned char *address, struct interface *ifp)
     neigh->hello.seqno = neigh->uhello.seqno = -1;
     memcpy(neigh->address, address, 16);
     neigh->txcost = INFINITY;
+    neigh->tocost = INFINITY;
     neigh->ihu_time = now;
     neigh->hello.time = neigh->uhello.time = zero;
     neigh->hello_rtt_receive_time = zero;
@@ -210,6 +211,12 @@ reset_txcost(struct neighbour *neigh)
     }
 
     return 0;
+}
+
+unsigned
+neighbour_tocost(struct neighbour *neigh)
+{
+    return neigh->tocost;
 }
 
 unsigned
@@ -359,6 +366,17 @@ neighbour_cost(struct neighbour *neigh)
     }
 
     cost += neighbour_rttcost(neigh);
+
+    cost += neighbour_tocost(neigh);
+
+    fprintf(stderr,"neighbour %lx address %s -- txcost=%u e rxcost=%u e rtt=%u e ocost=%u -- TOTAL=%u\n", 
+        (unsigned long int)neigh, 
+        format_address(neigh->address), 
+        a,
+        b,
+        neighbour_rttcost(neigh),
+        neighbour_tocost(neigh),
+        cost);
 
     return MIN(cost, INFINITY);
 }

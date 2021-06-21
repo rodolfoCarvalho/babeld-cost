@@ -65,6 +65,7 @@ int all_wireless = 0;
 int has_ipv6_subtrees = 0;
 int default_wireless_hello_interval = -1;
 int default_wired_hello_interval = -1;
+int default_router_operacional_cost = 0;
 int resend_delay = -1;
 int random_id = 0;
 int do_daemonise = 0;
@@ -154,7 +155,7 @@ main(int argc, char **argv)
 
     while(1) {
         opt = getopt(argc, argv,
-                     "m:p:h:H:i:k:A:srS:d:g:G:lwz:M:t:T:c:C:DL:I:V");
+                     "m:p:h:H:i:k:A:srS:d:g:G:lwz:M:t:T:c:C:DL:I:Y:V");
         if(opt < 0)
             break;
 
@@ -294,6 +295,11 @@ main(int argc, char **argv)
             break;
         case 'I':
             pidfile = optarg;
+            break;
+        case 'Y':
+            default_router_operacional_cost = parse_nat(optarg);
+            if(default_router_operacional_cost <= 0)
+                goto usage;
             break;
         case 'V':
             fprintf(stderr, "%s\n", BABELD_VERSION);
@@ -847,7 +853,7 @@ main(int argc, char **argv)
             "               "
             "[-t table] [-T table] [-c file] [-C statement]\n"
             "               "
-            "[-d level] [-D] [-L logfile] [-I pidfile]\n"
+            "[-d level] [-D] [-L logfile] [-I pidfile] [-Y cost]\n"
             "               "
             "interface...\n",
             BABELD_VERSION);
@@ -1092,13 +1098,14 @@ dump_tables(FILE *out)
 
     FOR_ALL_NEIGHBOURS(neigh) {
         fprintf(out, "Neighbour %s dev %s reach %04x ureach %04x "
-                "rxcost %u txcost %d rtt %s rttcost %u chan %d%s.\n",
+                "rxcost %u txcost %d tocost %d rtt %s rttcost %u chan %d%s.\n",
                 format_address(neigh->address),
                 neigh->ifp->name,
                 neigh->hello.reach,
                 neigh->uhello.reach,
                 neighbour_rxcost(neigh),
                 neigh->txcost,
+                neigh->tocost,
                 format_thousands(neigh->rtt),
                 neighbour_rttcost(neigh),
                 neigh->ifp->channel,

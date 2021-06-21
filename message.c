@@ -250,11 +250,14 @@ static int
 parse_ihu_subtlv(const unsigned char *a, int alen,
                  unsigned int *timestamp1_return,
                  unsigned int *timestamp2_return,
-                 int *have_timestamp_return)
+                 int *have_timestamp_return,
+                 unsigned short *tocost_return,
+                 int *have_tocost_return)
 {
     int type, len, i = 0;
-    int have_timestamp = 0;
+    int have_timestamp = 0, have_tocost = 0;
     unsigned int timestamp1, timestamp2;
+    unsigned short tocost;
 
     while(i < alen) {
         type = a[0];
@@ -286,6 +289,16 @@ parse_ihu_subtlv(const unsigned char *a, int alen,
                         "Received incorrect RTT sub-TLV on IHU.\n");
                 /* But don't break. */
             }
+        } else if(type == SUBTLV_OPERATIONAL_COST) {
+            if(len >= 2) {
+                DO_NTOHS(tocost, a + i + 2);
+                //fprintf(stderr,"tocost recebido %hi\n", tocost);
+                have_tocost = 1;
+            } else {
+                fprintf(stderr,
+                        "Received incorrect OPERATIONAL_COST sub-TLV on IHU.\n");
+                /* But don't break. */
+            }
         } else {
             debugf("Received unknown%s IHU sub-TLV %d.\n",
                    (type & 0x80) != 0 ? " mandatory" : "", type);
@@ -301,6 +314,13 @@ parse_ihu_subtlv(const unsigned char *a, int alen,
     }
     if(have_timestamp_return) {
         *have_timestamp_return = have_timestamp;
+    }
+    if(have_tocost && tocost_return) {
+        *tocost_return = tocost;
+
+    }
+    if(have_tocost_return) {
+        *have_tocost_return = have_tocost;
     }
     return 1;
 }
@@ -574,7 +594,7 @@ parse_packet(const unsigned char *from, struct interface *ifp,
                 have_hello_rtt = 1;
             }
         } else if(type == MESSAGE_IHU) {
-            unsigned short txcost, interval;
+            unsigned short txcost, interval, tocost = INFINITY;
             unsigned char address[16];
             int rc;
             if(len < 6) goto fail;
@@ -595,11 +615,13 @@ parse_packet(const unsigned char *from, struct interface *ifp,
                 int changed;
                 rc = parse_ihu_subtlv(message + 8 + rc, len - 6 - rc,
                                       &hello_send_us, &hello_rtt_receive_time,
-                                      NULL);
+                                      NULL, &tocost, NULL);
                 if(rc < 0)
                     goto done;
-                changed = txcost != neigh->txcost;
+                changed = txcost != neigh->txcost || neigh->tocost != tocost;
                 neigh->txcost = txcost;
+                //fprintf(stderr,"tocost setado de %hi para %hi\n", neigh->tocost, tocost);
+                neigh->tocost = tocost;
                 neigh->ihu_time = now;
                 neigh->ihu_interval = interval;
                 update_neighbour_metric(neigh, changed);
@@ -1687,14 +1709,14 @@ send_self_update(struct interface *ifp)
 }
 
 void
-buffer_ihu(struct buffered *buf, struct interface *ifp, unsigned short rxcost,
+buffer_ihu(struct buffered *buf, struct interface *ifp, unsigned short rxcost, unsigned short rocost,
            unsigned short interval, const unsigned char *address,
            int rtt_data, unsigned int t1, unsigned int t2)
 {
     int msglen, ll;
 
     ll = linklocal(address);
-    msglen = (ll ? 14 : 22) + (rtt_data ? 10 : 0);
+    msglen = (ll ? 14 : 22) + (rtt_data ? 10 : 0) + (rocost ? 4 : 0 );
 
     start_message(buf, ifp, MESSAGE_IHU, msglen);
     accumulate_byte(buf, ll ? 3 : 2);
@@ -1711,6 +1733,12 @@ buffer_ihu(struct buffered *buf, struct interface *ifp, unsigned short rxcost,
         accumulate_int(buf, t1);
         accumulate_int(buf, t2);
     }
+    if(rocost) {
+        //fprintf(stderr,"rocost setado msg %hi\n", rocost);
+        accumulate_byte(buf, SUBTLV_OPERATIONAL_COST);
+        accumulate_byte(buf, 2);
+        accumulate_short(buf, rocost);
+    }
     end_message(buf, MESSAGE_IHU, msglen);
 }
 
@@ -1718,7 +1746,7 @@ buffer_ihu(struct buffered *buf, struct interface *ifp, unsigned short rxcost,
 void
 send_ihu(struct neighbour *neigh, struct interface *ifp)
 {
-    int rxcost, interval;
+    int rxcost, rocost, interval;
     int send_rtt_data;
     int unicast;
 
@@ -1780,9 +1808,9 @@ send_ihu(struct neighbour *neigh, struct interface *ifp)
         else
             send_multicast_hello(ifp, 0, 0);
     }
-
+    rocost = default_router_operacional_cost;
     buffer_ihu(unicast ? &neigh->buf : &ifp->buf,
-               ifp, rxcost, interval, neigh->address,
+               ifp, rxcost, rocost, interval, neigh->address,
                send_rtt_data, neigh->hello_send_us,
                time_us(neigh->hello_rtt_receive_time));
 
