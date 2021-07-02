@@ -369,15 +369,6 @@ neighbour_cost(struct neighbour *neigh)
 
     cost += neighbour_tocost(neigh);
 
-    fprintf(stderr,"neighbour %lx address %s -- txcost=%u e rxcost=%u e rtt=%u e ocost=%u -- TOTAL=%u\n", 
-        (unsigned long int)neigh, 
-        format_address(neigh->address), 
-        a,
-        b,
-        neighbour_rttcost(neigh),
-        neighbour_tocost(neigh),
-        cost);
-
     return MIN(cost, INFINITY);
 }
 

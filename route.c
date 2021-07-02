@@ -925,6 +925,15 @@ update_route(const unsigned char *id,
     feasible = update_feasible(src, seqno, refmetric);
     metric = MIN((int)refmetric + neighbour_cost(neigh) + add_metric, INFINITY);
 
+    fprintf(stderr,"neighbour %lx address %s -- refmetric=%u e cost=%u e add_metric=%u e INFINITy = %u -- TOTAL=%u\n", 
+        (unsigned long int)neigh, 
+        format_address(neigh->address), 
+        refmetric,
+        neighbour_cost(neigh),
+        add_metric,
+        INFINITY,
+        metric);
+
     if(route) {
         struct source *oldsrc;
         unsigned short oldmetric, oldinstalled;
